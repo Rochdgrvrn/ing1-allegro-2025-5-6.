@@ -4,6 +4,7 @@
 typedef enum {
     STATE_MENU,
     STATE_RULES,
+    STATE_PLAYER_COUNT_SELECTION,
     STATE_CHARACTER_SELECTION,
     STATE_GAME
 } GameState;
@@ -16,14 +17,17 @@ typedef enum {
     CHARACTER_COUNT
 } Character;
 
-int selected_characters[2] = {-1, -1};
+int selected_characters[4] = {-1, -1, -1, -1};
 int current_player = 0;
+int total_players = 2;
 GameState game_state = STATE_MENU;
 BITMAP *buffer;
 
-int player_positions[2][2] = {{100, 300}, {600, 300}};
+int player_positions[4][2] = {
+    {100, 300}, {600, 300}, {100, 400}, {600, 400}
+};
 int move_speed = 67;
-int player_moves_left[2] = {3, 3};
+int player_moves_left[4] = {3, 3, 3, 3};
 
 int countdown = 20;
 int frame_counter = 0;
@@ -61,15 +65,42 @@ void show_menu() {
     if (mouse_b & 1) {
         if (mouse_x >= 300 && mouse_x <= 500) {
             if (mouse_y >= 200 && mouse_y <= 250) {
-                game_state = STATE_CHARACTER_SELECTION;
-                current_player = 0;
-                selected_characters[0] = -1;
-                selected_characters[1] = -1;
+                game_state = STATE_PLAYER_COUNT_SELECTION;
                 rest(200);
             } else if (mouse_y >= 300 && mouse_y <= 350) {
                 game_state = STATE_RULES;
                 rest(200);
             }
+        }
+    }
+}
+
+void show_player_count_selection() {
+    clear_to_color(buffer, makecol(0, 0, 0));
+    textout_centre_ex(buffer, font, "Choisissez le nombre de joueurs", SCREEN_W / 2, 100, makecol(255, 255, 255), -1);
+    draw_button(250, 200, 100, 50, "2 joueurs");
+    draw_button(350, 200, 100, 50, "3 joueurs");
+    draw_button(450, 200, 100, 50, "4 joueurs");
+
+    if (mouse_b & 1) {
+        if (mouse_y >= 200 && mouse_y <= 250) {
+            if (mouse_x >= 250 && mouse_x <= 350) {
+                total_players = 2;
+            } else if (mouse_x >= 350 && mouse_x <= 450) {
+                total_players = 3;
+            } else if (mouse_x >= 450 && mouse_x <= 550) {
+                total_players = 4;
+            } else {
+                return;
+            }
+
+            for (int i = 0; i < 4; i++) {
+                selected_characters[i] = -1;
+                player_moves_left[i] = 3;
+            }
+            current_player = 0;
+            game_state = STATE_CHARACTER_SELECTION;
+            rest(200);
         }
     }
 }
@@ -114,12 +145,10 @@ void show_character_selection() {
                 selected_characters[current_player] = i;
                 current_player++;
                 rest(200);
-                if (current_player >= 2) {
+                if (current_player >= total_players) {
                     game_state = STATE_GAME;
                     current_player = 0;
                     countdown = 20;
-                    player_moves_left[0] = 3;
-                    player_moves_left[1] = 3;
                 }
                 break;
             }
@@ -128,7 +157,7 @@ void show_character_selection() {
 }
 
 void next_turn() {
-    current_player = (current_player + 1) % 2;
+    current_player = (current_player + 1) % total_players;
     player_moves_left[current_player] = 3;
     countdown = 20;
 }
@@ -151,8 +180,9 @@ void show_game() {
     clear_to_color(buffer, makecol(0, 100, 100));
     textout_ex(buffer, font, "Partie en cours...", 300, 20, makecol(255, 255, 255), -1);
 
-    draw_custom_character(player_positions[0][0], player_positions[0][1], selected_characters[0]);
-    draw_custom_character(player_positions[1][0], player_positions[1][1], selected_characters[1]);
+    for (int i = 0; i < total_players; ++i) {
+        draw_custom_character(player_positions[i][0], player_positions[i][1], selected_characters[i]);
+    }
 
     draw_countdown(countdown);
 
@@ -187,7 +217,7 @@ int main() {
     install_keyboard();
     install_mouse();
     set_color_depth(32);
-    set_gfx_mode(GFX_AUTODETECT_WINDOWED, 800, 700, 0, 0); // Hauteur suffisante
+    set_gfx_mode(GFX_AUTODETECT_WINDOWED, 800, 700, 0, 0);
     show_mouse(screen);
 
     buffer = create_bitmap(800, 700);
@@ -196,6 +226,7 @@ int main() {
         switch (game_state) {
             case STATE_MENU: show_menu(); break;
             case STATE_RULES: show_rules(); break;
+            case STATE_PLAYER_COUNT_SELECTION: show_player_count_selection(); break;
             case STATE_CHARACTER_SELECTION: show_character_selection(); break;
             case STATE_GAME: show_game(); break;
         }
@@ -209,3 +240,4 @@ int main() {
     return 0;
 }
 END_OF_MAIN();
+
