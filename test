@@ -1,5 +1,6 @@
 #include <allegro.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 typedef enum {
     STATE_MENU,
@@ -23,12 +24,13 @@ int total_players = 2;
 GameState game_state = STATE_MENU;
 BITMAP *buffer;
 
-int player_positions[4][2] = {
-    {100, 300}, {600, 300}, {100, 400}, {600, 400}
+int grid_positions[4][2] = {
+    {0, 4}, {9, 4}, {0, 5}, {9, 5}
 };
-int move_speed = 67;
-int player_moves_left[4] = {3, 3, 3, 3};
+int cell_width = 80;
+int cell_height = 70;
 
+int player_moves_left[4] = {3, 3, 3, 3};
 int countdown = 20;
 int frame_counter = 0;
 
@@ -40,14 +42,17 @@ void draw_button(int x, int y, int w, int h, const char *label) {
 
 void draw_custom_character(int x, int y, Character character) {
     switch (character) {
-        case KNIGHT:
-            rectfill(buffer, x, y, x + 50, y + 50, makecol(0, 0, 255)); break;
-        case NINJA:
-            rectfill(buffer, x, y, x + 50, y + 50, makecol(0, 0, 0)); break;
-        case SAMURAI:
-            rectfill(buffer, x, y, x + 50, y + 50, makecol(255, 0, 0)); break;
-        case MILITARY:
-            rectfill(buffer, x, y, x + 50, y + 50, makecol(0, 255, 0)); break;
+        case KNIGHT:   rectfill(buffer, x, y, x + 50, y + 50, makecol(0, 0, 255)); break;
+        case NINJA:    rectfill(buffer, x, y, x + 50, y + 50, makecol(0, 0, 0)); break;
+        case SAMURAI:  rectfill(buffer, x, y, x + 50, y + 50, makecol(255, 0, 0)); break;
+        case MILITARY: rectfill(buffer, x, y, x + 50, y + 50, makecol(0, 255, 0)); break;
+    }
+}
+
+void draw_grid() {
+    for (int i = 0; i <= 10; ++i) {
+        line(buffer, i * cell_width, 0, i * cell_width, 700, makecol(255, 255, 255));
+        line(buffer, 0, i * cell_height, 800, i * cell_height, makecol(255, 255, 255));
     }
 }
 
@@ -55,6 +60,15 @@ void draw_countdown(int time_left) {
     char countdown_text[50];
     sprintf(countdown_text, "Temps: %d s", time_left);
     textout_ex(buffer, font, countdown_text, SCREEN_W - 150, 30, makecol(255, 255, 255), -1);
+}
+
+bool is_cell_occupied(int x, int y) {
+    for (int i = 0; i < total_players; ++i) {
+        if (i != current_player && grid_positions[i][0] == x && grid_positions[i][1] == y) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void show_menu() {
@@ -97,6 +111,8 @@ void show_player_count_selection() {
             for (int i = 0; i < 4; i++) {
                 selected_characters[i] = -1;
                 player_moves_left[i] = 3;
+                grid_positions[i][0] = (i % 2 == 0) ? 0 : 9;
+                grid_positions[i][1] = 4 + (i / 2);
             }
             current_player = 0;
             game_state = STATE_CHARACTER_SELECTION;
@@ -164,13 +180,21 @@ void next_turn() {
 
 void handle_movement_buttons(int x, int y, int w, int h, const char* direction) {
     if (mouse_b & 1 && mouse_x >= x && mouse_x <= x + w && mouse_y >= y && mouse_y <= y + h) {
-        int *pos = player_positions[current_player];
+        int new_x = grid_positions[current_player][0];
+        int new_y = grid_positions[current_player][1];
+
         if (player_moves_left[current_player] > 0) {
-            if (strcmp(direction, "Haut") == 0) pos[1] -= move_speed;
-            else if (strcmp(direction, "Bas") == 0) pos[1] += move_speed;
-            else if (strcmp(direction, "Gauche") == 0) pos[0] -= move_speed;
-            else if (strcmp(direction, "Droite") == 0) pos[0] += move_speed;
-            player_moves_left[current_player]--;
+            if (strcmp(direction, "Haut") == 0 && new_y > 0) new_y--;
+            else if (strcmp(direction, "Bas") == 0 && new_y < 9) new_y++;
+            else if (strcmp(direction, "Gauche") == 0 && new_x > 0) new_x--;
+            else if (strcmp(direction, "Droite") == 0 && new_x < 9) new_x++;
+
+            if (!is_cell_occupied(new_x, new_y)) {
+                grid_positions[current_player][0] = new_x;
+                grid_positions[current_player][1] = new_y;
+                player_moves_left[current_player]--;
+            }
+
             rest(200);
         }
     }
@@ -178,10 +202,13 @@ void handle_movement_buttons(int x, int y, int w, int h, const char* direction) 
 
 void show_game() {
     clear_to_color(buffer, makecol(0, 100, 100));
+    draw_grid();
     textout_ex(buffer, font, "Partie en cours...", 300, 20, makecol(255, 255, 255), -1);
 
     for (int i = 0; i < total_players; ++i) {
-        draw_custom_character(player_positions[i][0], player_positions[i][1], selected_characters[i]);
+        int px = grid_positions[i][0] * cell_width;
+        int py = grid_positions[i][1] * cell_height;
+        draw_custom_character(px + 15, py + 10, selected_characters[i]);
     }
 
     draw_countdown(countdown);
@@ -240,4 +267,5 @@ int main() {
     return 0;
 }
 END_OF_MAIN();
+
 
