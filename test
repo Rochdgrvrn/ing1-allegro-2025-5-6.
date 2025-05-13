@@ -8,7 +8,8 @@
 #define CELL_SIZE 60
 #define MAX_PLAYERS 4
 #define MAX_OBSTACLES 2
-#define MAX_PM 3
+#define MAX_PM_PER_TURN 3
+#define INITIAL_TOTAL_PM 100
 
 typedef enum {
     STATE_MENU,
@@ -27,8 +28,15 @@ typedef enum {
 } Character;
 
 typedef struct {
-    int x, y, distance;
-} Node;
+    int x, y;
+} Coord;
+
+typedef struct {
+    Coord coords[GRID_SIZE * GRID_SIZE];
+    int length;
+    int index;
+    bool active;
+} MovementPath;
 
 int selected_characters[MAX_PLAYERS] = {-1, -1, -1, -1};
 int current_player = 0;
@@ -37,11 +45,13 @@ GameState game_state = STATE_MENU;
 BITMAP *buffer;
 
 int player_grid_positions[MAX_PLAYERS][2];
-int player_moves_left[MAX_PLAYERS] = {3, 3, 3, 3};
+int player_pm_total[MAX_PLAYERS] = {INITIAL_TOTAL_PM, INITIAL_TOTAL_PM, INITIAL_TOTAL_PM, INITIAL_TOTAL_PM};
+int player_pm_turn[MAX_PLAYERS] = {MAX_PM_PER_TURN, MAX_PM_PER_TURN, MAX_PM_PER_TURN, MAX_PM_PER_TURN};
 int countdown = 20;
 int frame_counter = 0;
-
 int grid[GRID_SIZE][GRID_SIZE] = {0};
+int visited[GRID_SIZE][GRID_SIZE] = {0};
+MovementPath movement_path = {0};
 
 void draw_button(int x, int y, int w, int h, const char *label) {
     rectfill(buffer, x, y, x + w, y + h, makecol(100, 100, 100));
@@ -56,6 +66,14 @@ void draw_custom_character(int x, int y, Character character) {
         case SAMURAI:  rectfill(buffer, x, y, x + CELL_SIZE, y + CELL_SIZE, makecol(255, 0, 0)); break;
         case MILITARY: rectfill(buffer, x, y, x + CELL_SIZE, y + CELL_SIZE, makecol(0, 255, 0)); break;
     }
+}
+
+void draw_pm_info(int player) {
+    char text[64];
+    sprintf(text, "PM totaux : %d", player_pm_total[player]);
+    textout_ex(buffer, font, text, SCREEN_W - 200, 60, makecol(255, 255, 255), -1);
+    sprintf(text, "PM tour : %d", player_pm_turn[player]);
+    textout_ex(buffer, font, text, SCREEN_W - 200, 80, makecol(255, 255, 255), -1);
 }
 
 void draw_countdown(int time_left) {
@@ -83,49 +101,123 @@ int is_valid_cell(int x, int y) {
 }
 
 void highlight_accessible_cells(int start_x, int start_y) {
-    bool visited[GRID_SIZE][GRID_SIZE] = {false};
+    memset(visited, 0, sizeof(visited));
+    typedef struct { int x, y, dist; } Node;
     Node queue[GRID_SIZE * GRID_SIZE];
     int front = 0, back = 0;
 
     queue[back++] = (Node){start_x, start_y, 0};
-    visited[start_y][start_x] = true;
+    visited[start_y][start_x] = 1;
 
     while (front < back) {
-        Node current = queue[front++];
+        Node cur = queue[front++];
 
-        if (current.distance > 0) {
-            rectfill(
-                buffer,
-                current.x * CELL_SIZE,
-                current.y * CELL_SIZE,
-                (current.x + 1) * CELL_SIZE,
-                (current.y + 1) * CELL_SIZE,
-                makecol(255, 255, 100)
-            );
+        if (cur.dist > 0) {
+            rectfill(buffer, cur.x * CELL_SIZE, cur.y * CELL_SIZE,
+                     (cur.x + 1) * CELL_SIZE, (cur.y + 1) * CELL_SIZE,
+                     makecol(255, 255, 100));
         }
 
-        if (current.distance >= MAX_PM)
+        if (cur.dist >= MAX_PM_PER_TURN)
             continue;
 
-        int dx[] = {0, 0, -1, 1};
-        int dy[] = {-1, 1, 0, 0};
+        int dxs[4] = {0, 0, -1, 1};
+        int dys[4] = {-1, 1, 0, 0};
 
         for (int i = 0; i < 4; i++) {
-            int nx = current.x + dx[i];
-            int ny = current.y + dy[i];
-
+            int nx = cur.x + dxs[i];
+            int ny = cur.y + dys[i];
             if (is_valid_cell(nx, ny) && !visited[ny][nx]) {
-                visited[ny][nx] = true;
-                queue[back++] = (Node){nx, ny, current.distance + 1};
+                visited[ny][nx] = 1;
+                queue[back++] = (Node){nx, ny, cur.dist + 1};
             }
         }
     }
 }
+int find_path(int sx, int sy, int dx, int dy, Coord *path, int *path_len) {
+    typedef struct {
+        int x, y;
+        Coord prev;
+    } BFSNode;
+
+    BFSNode queue[GRID_SIZE * GRID_SIZE];
+    Coord parents[GRID_SIZE][GRID_SIZE];
+    bool visited[GRID_SIZE][GRID_SIZE] = {false};
+
+    int front = 0, back = 0;
+    queue[back++] = (BFSNode){sx, sy, {-1, -1}};
+    visited[sy][sx] = true;
+
+    while (front < back) {
+        BFSNode cur = queue[front++];
+
+        if (cur.x == dx && cur.y == dy) {
+            int len = 0;
+            Coord p = (Coord){dx, dy};
+            while (!(p.x == sx && p.y == sy)) {
+                path[len++] = p;
+                p = parents[p.y][p.x];
+            }
+            path[len++] = (Coord){sx, sy};
+            for (int i = 0; i < len / 2; i++) {
+                Coord tmp = path[i];
+                path[i] = path[len - 1 - i];
+                path[len - 1 - i] = tmp;
+            }
+            *path_len = len;
+            return 1;
+        }
+
+        int dxs[4] = {1, -1, 0, 0};
+        int dys[4] = {0, 0, 1, -1};
+
+        for (int i = 0; i < 4; i++) {
+            int nx = cur.x + dxs[i];
+            int ny = cur.y + dys[i];
+            if (is_valid_cell(nx, ny) && !visited[ny][nx]) {
+                visited[ny][nx] = true;
+                parents[ny][nx] = (Coord){cur.x, cur.y};
+                queue[back++] = (BFSNode){nx, ny, {cur.x, cur.y}};
+            }
+        }
+    }
+    return 0;
+}
+
+void update_movement() {
+    if (!movement_path.active)
+        return;
+
+    if (movement_path.index >= movement_path.length) {
+        movement_path.active = false;
+        return;
+    }
+
+    int gx = movement_path.coords[movement_path.index].x;
+    int gy = movement_path.coords[movement_path.index].y;
+
+    int *cx = &player_grid_positions[current_player][0];
+    int *cy = &player_grid_positions[current_player][1];
+
+    grid[*cy][*cx] = 0;
+    *cx = gx;
+    *cy = gy;
+    grid[gy][gx] = current_player + 1;
+
+    player_pm_turn[current_player]--;
+    player_pm_total[current_player]--;
+
+    movement_path.index++;
+    rest(100);
+}
 
 void next_turn() {
     current_player = (current_player + 1) % total_players;
-    player_moves_left[current_player] = 3;
+    player_pm_turn[current_player] = MAX_PM_PER_TURN;
     countdown = 20;
+    movement_path.active = false;
+    movement_path.index = 0;
+    movement_path.length = 0;
 }
 
 void show_game() {
@@ -142,8 +234,8 @@ void show_game() {
     int cx = player_grid_positions[current_player][0];
     int cy = player_grid_positions[current_player][1];
     highlight_accessible_cells(cx, cy);
-
     draw_countdown(countdown);
+    draw_pm_info(current_player);
     draw_button(10, 650, 200, 40, "Retour au menu");
 
     if (mouse_b & 1 && mouse_x >= 10 && mouse_x <= 210 && mouse_y >= 650 && mouse_y <= 690) {
@@ -151,28 +243,37 @@ void show_game() {
         rest(200);
     }
 
-    if (mouse_b & 1 && player_moves_left[current_player] > 0) {
+    if ((mouse_b & 1) && !movement_path.active && player_pm_turn[current_player] > 0) {
         int gx = mouse_x / CELL_SIZE;
         int gy = mouse_y / CELL_SIZE;
 
-        if ((abs(gx - cx) == 1 && gy == cy) || (abs(gy - cy) == 1 && gx == cx)) {
-            if (is_valid_cell(gx, gy)) {
-                grid[cy][cx] = 0;
-                player_grid_positions[current_player][0] = gx;
-                player_grid_positions[current_player][1] = gy;
-                grid[gy][gx] = current_player + 1;
-                player_moves_left[current_player]--;
-                rest(200);
+        if (visited[gy][gx] && is_valid_cell(gx, gy)) {
+            Coord path[GRID_SIZE * GRID_SIZE];
+            int len = 0;
+            int sx = player_grid_positions[current_player][0];
+            int sy = player_grid_positions[current_player][1];
+            if (find_path(sx, sy, gx, gy, path, &len)) {
+                if (len - 1 <= player_pm_turn[current_player]) {
+                    movement_path.length = len;
+                    movement_path.index = 1;
+                    for (int i = 0; i < len; i++) {
+                        movement_path.coords[i] = path[i];
+                    }
+                    movement_path.active = true;
+                }
             }
+            rest(200);
         }
     }
+
+    update_movement();
 
     if (++frame_counter >= 50) {
         countdown--;
         frame_counter = 0;
     }
 
-    if (countdown <= 0 || player_moves_left[current_player] <= 0) {
+    if (countdown <= 0) {
         next_turn();
     }
 }
@@ -180,11 +281,6 @@ void show_game() {
 void place_players_and_obstacles() {
     srand(time(NULL));
     int placed_players = 0, placed_obstacles = 0;
-
-    for (int i = 0; i < MAX_PLAYERS; i++) {
-        player_grid_positions[i][0] = -1;
-        player_grid_positions[i][1] = -1;
-    }
 
     while (placed_players < total_players) {
         int x = rand() % GRID_SIZE;
@@ -228,7 +324,7 @@ void show_menu() {
 void show_rules() {
     clear_to_color(buffer, makecol(50, 50, 50));
     textout_ex(buffer, font, "Règles :", 50, 50, makecol(255, 255, 255), -1);
-    textout_ex(buffer, font, "- Cliquez sur une case adjacente pour vous déplacer.", 50, 80, makecol(255, 255, 255), -1);
+    textout_ex(buffer, font, "- Cliquez sur une case en surbrillance pour vous déplacer.", 50, 80, makecol(255, 255, 255), -1);
     draw_button(10, 550, 200, 40, "Retour au menu");
 
     if (mouse_b & 1 && mouse_x >= 10 && mouse_x <= 210 && mouse_y >= 550 && mouse_y <= 590) {
@@ -326,5 +422,4 @@ int main() {
     return 0;
 }
 END_OF_MAIN();
-
 
