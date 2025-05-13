@@ -2,11 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdbool.h>
 
 #define GRID_SIZE 10
 #define CELL_SIZE 60
 #define MAX_PLAYERS 4
 #define MAX_OBSTACLES 2
+#define MAX_PM 3
 
 typedef enum {
     STATE_MENU,
@@ -23,6 +25,10 @@ typedef enum {
     MILITARY,
     CHARACTER_COUNT
 } Character;
+
+typedef struct {
+    int x, y, distance;
+} Node;
 
 int selected_characters[MAX_PLAYERS] = {-1, -1, -1, -1};
 int current_player = 0;
@@ -76,15 +82,42 @@ int is_valid_cell(int x, int y) {
     return x >= 0 && x < GRID_SIZE && y >= 0 && y < GRID_SIZE && grid[y][x] == 0;
 }
 
-void highlight_accessible_cells(int x, int y) {
-    int dx[] = {0, 0, -1, 1};
-    int dy[] = {-1, 1, 0, 0};
+void highlight_accessible_cells(int start_x, int start_y) {
+    bool visited[GRID_SIZE][GRID_SIZE] = {false};
+    Node queue[GRID_SIZE * GRID_SIZE];
+    int front = 0, back = 0;
 
-    for (int i = 0; i < 4; i++) {
-        int nx = x + dx[i];
-        int ny = y + dy[i];
-        if (is_valid_cell(nx, ny)) {
-            rectfill(buffer, nx * CELL_SIZE, ny * CELL_SIZE, (nx + 1) * CELL_SIZE, (ny + 1) * CELL_SIZE, makecol(255, 255, 100));
+    queue[back++] = (Node){start_x, start_y, 0};
+    visited[start_y][start_x] = true;
+
+    while (front < back) {
+        Node current = queue[front++];
+
+        if (current.distance > 0) {
+            rectfill(
+                buffer,
+                current.x * CELL_SIZE,
+                current.y * CELL_SIZE,
+                (current.x + 1) * CELL_SIZE,
+                (current.y + 1) * CELL_SIZE,
+                makecol(255, 255, 100)
+            );
+        }
+
+        if (current.distance >= MAX_PM)
+            continue;
+
+        int dx[] = {0, 0, -1, 1};
+        int dy[] = {-1, 1, 0, 0};
+
+        for (int i = 0; i < 4; i++) {
+            int nx = current.x + dx[i];
+            int ny = current.y + dy[i];
+
+            if (is_valid_cell(nx, ny) && !visited[ny][nx]) {
+                visited[ny][nx] = true;
+                queue[back++] = (Node){nx, ny, current.distance + 1};
+            }
         }
     }
 }
@@ -293,6 +326,5 @@ int main() {
     return 0;
 }
 END_OF_MAIN();
-
 
 
