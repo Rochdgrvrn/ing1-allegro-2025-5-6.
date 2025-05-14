@@ -1,11 +1,15 @@
+#include <allegro.h>
 #include "game.h"
+#include "menu.h"
+#include "movement.h"
+#include "utils.h"
 
 int main() {
     allegro_init();
     install_keyboard();
     install_mouse();
     set_color_depth(32);
-    set_gfx_mode(GFX_AUTODETECT_WINDOWED, 800, 700, 0, 0); // Hauteur suffisante
+    set_gfx_mode(GFX_AUTODETECT_WINDOWED, 800, 700, 0, 0);
     show_mouse(screen);
 
     buffer = create_bitmap(800, 700);
@@ -14,6 +18,7 @@ int main() {
         switch (game_state) {
             case STATE_MENU: show_menu(); break;
             case STATE_RULES: show_rules(); break;
+            case STATE_PLAYER_COUNT_SELECTION: show_player_count_selection(); break;
             case STATE_CHARACTER_SELECTION: show_character_selection(); break;
             case STATE_GAME: show_game(); break;
         }
@@ -27,3 +32,4 @@ int main() {
     return 0;
 }
 END_OF_MAIN();
+
