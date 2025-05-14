@@ -1,12 +1,15 @@
-cmake_minimum_required(VERSION 3.29)
-project(ECEARENA C)
+cmake_minimum_required(VERSION 3.14)
+project(ecearena2 C)
 
-set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD 99)
 
-add_executable(ECEARENA main.c
-        graphics.c
-        ui.c
-        game.c
-        init.c)
+include_directories(include)
 
-target_link_libraries(ECEARENA -lmingw32 -lalleg44)
+file(GLOB SOURCES "src/*.c")
+
+add_executable(ECEARENA2 ${SOURCES}
+        main.c
+        src/globals.c)
+
+target_link_libraries(ECEARENA2 mingw32 alleg44)
+
