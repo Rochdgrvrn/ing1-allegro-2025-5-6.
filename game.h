@@ -1,36 +1,34 @@
 #ifndef GAME_H
 #define GAME_H
-#include &lt;allegro.h&gt;
+
+#include <allegro.h>
+
 typedef enum {
-STATE_MENU,
-STATE_RULES,
-STATE_CHARACTER_SELECTION,
-STATE_GAME
+    STATE_MENU,
+    STATE_RULES,
+    STATE_PLAYER_COUNT_SELECTION,
+    STATE_CHARACTER_SELECTION,
+    STATE_GAME
 } GameState;
-typedef enum {
-KNIGHT,
-NINJA,
-SAMURAI,
-MILITARY,
-CHARACTER_COUNT
-} Character;
-extern int selected_characters[2];
-extern int current_player;
+
 extern GameState game_state;
 extern BITMAP *buffer;
-extern int player_positions[2][2];
-extern int move_speed;
 
-extern int player_moves_left[2];
+extern int current_player;
+extern int total_players;
+extern int selected_characters[4];
+extern int player_grid_positions[4][2];
+extern int player_pm_total[4];
+extern int player_pm_turn[4];
 extern int countdown;
 extern int frame_counter;
-void draw_button(int x, int y, int w, int h, const char *label);
-void draw_custom_character(int x, int y, Character character);
-void draw_countdown(int time_left);
-void show_menu();
-void show_rules();
-void show_character_selection();
-void next_turn();
-void handle_movement_buttons(int x, int y, int w, int h, const char* direction);
-void show_game();
+extern int grid[10][10];
+extern int visited[10][10];
+void next_turn(void);
+void show_game(void);
+void place_players_and_obstacles(void);
+
+
+
+
 #endif
