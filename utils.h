@@ -12,4 +12,3 @@ void draw_pm_info(int player);
 void draw_grid(void);
 
 #endif
-
