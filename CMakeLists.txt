@@ -9,7 +9,11 @@ file(GLOB SOURCES "src/*.c")
 
 add_executable(ECEARENA2 ${SOURCES}
         main.c
-        src/globals.c)
+        src/globals.c
+        src/spell.c
+        include/spell.h
+        src/assets.c
+        include/assets.h
+        include/images.h)
 
 target_link_libraries(ECEARENA2 mingw32 alleg44)
-
