@@ -1,10 +1,12 @@
 #include <string.h>
 #include "movement.h"
 #include "game.h"
-#include "game.h"
-
 
 MovementPath movement_path = {0};
+int is_valid_cell(int x, int y) {
+    return (x >= 0 && x < 10 && y >= 0 && y < 10 && grid[y][x] == 0);
+}
+
 
 int find_path(int sx, int sy, int dx, int dy, Coord *path, int *path_len) {
     typedef struct { int x, y; Coord prev; } BFSNode;
@@ -41,6 +43,7 @@ int find_path(int sx, int sy, int dx, int dy, Coord *path, int *path_len) {
         for (int i = 0; i < 4; i++) {
             int nx = cur.x + dxs[i];
             int ny = cur.y + dys[i];
+
             if (is_valid_cell(nx, ny) && !local_visited[ny][nx]) {
                 local_visited[ny][nx] = true;
                 parents[ny][nx] = (Coord){cur.x, cur.y};
@@ -58,7 +61,7 @@ void highlight_accessible_cells(int start_x, int start_y) {
 
     memset(visited, 0, sizeof(visited));
     queue[back++] = (Node){start_x, start_y, 0};
-    visited[start_y][start_x] = 1;  // marquer comme visité, mais...
+    visited[start_y][start_x] = 1;
 
     while (front < back) {
         Node cur = queue[front++];
@@ -79,13 +82,8 @@ void highlight_accessible_cells(int start_x, int start_y) {
         }
     }
 
-    // Réinitialiser la case du joueur pour qu’elle ne soit PAS surlignée
+    // Ne pas surligner la case du joueur
     visited[start_y][start_x] = 0;
-}
-
-
-int is_valid_cell(int x, int y) {
-    return x >= 0 && x < 10 && y >= 0 && y < 10 && grid[y][x] == 0;
 }
 
 void update_movement() {
@@ -113,5 +111,6 @@ void update_movement() {
     movement_path.index++;
     rest(100);
 }
+
 
 
