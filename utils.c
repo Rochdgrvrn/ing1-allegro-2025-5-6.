@@ -1,11 +1,14 @@
 #include "../include/utils.h"
 #include "../include/game.h"
+#include "../include/assets.h"
 #include <stdio.h>
-
+#include "../include/images.h"
 
 extern BITMAP *buffer;
 extern int player_pm_total[4];
 extern int player_pm_turn[4];
+extern int player_pa_turn[4];
+extern int player_pv[4];
 extern int grid[10][10];
 
 void draw_button(int x, int y, int w, int h, const char *label) {
@@ -23,11 +26,11 @@ void draw_text_center(const char *text, int x, int y, int color) {
 }
 
 void draw_custom_character(int x, int y, int character) {
-    switch (character) {
-        case 0: rectfill(buffer, x, y, x + 60, y + 60, makecol(0, 0, 255)); break;
-        case 1: rectfill(buffer, x, y, x + 60, y + 60, makecol(0, 0, 0)); break;
-        case 2: rectfill(buffer, x, y, x + 60, y + 60, makecol(255, 0, 0)); break;
-        case 3: rectfill(buffer, x, y, x + 60, y + 60, makecol(0, 255, 0)); break;
+    if (character >= 0 && character < 4 && img_characters[character] != NULL) {
+        draw_sprite(buffer, img_characters[character], x, y);
+    } else {
+        // Affiche un carré rouge si image manquante
+        rectfill(buffer, x, y, x + 60, y + 60, makecol(255, 0, 0));
     }
 }
 
@@ -43,18 +46,33 @@ void draw_pm_info(int player) {
     textout_ex(buffer, font, text, SCREEN_W - 200, 60, makecol(255, 255, 255), -1);
     sprintf(text, "PM tour : %d", player_pm_turn[player]);
     textout_ex(buffer, font, text, SCREEN_W - 200, 80, makecol(255, 255, 255), -1);
+    sprintf(text, "PA tour : %d", player_pa_turn[player]);
+    textout_ex(buffer, font, text, SCREEN_W - 200, 100, makecol(255, 255, 255), -1);
+    sprintf(text, "PV : %d", player_pv[player]);
+    textout_ex(buffer, font, text, SCREEN_W - 200, 120, makecol(255, 255, 255), -1);
 }
 
 void draw_grid() {
+    // Affiche le fond de l'arène
+    if (img_arena != NULL) {
+        draw_sprite(buffer, img_arena, 0, 0);
+    } else {
+        clear_to_color(buffer, makecol(0, 0, 255));
+    }
+
+    // Parcours des cases
     for (int y = 0; y < 10; y++) {
         for (int x = 0; x < 10; x++) {
             int px = x * 60;
             int py = y * 60;
-            rect(buffer, px, py, px + 60, py + 60, makecol(255, 255, 255));
-            if (grid[y][x] == 9) {
-                line(buffer, px, py, px + 60, py + 60, makecol(255, 0, 0));
-                line(buffer, px + 60, py, px, py + 60, makecol(255, 0, 0));
+
+            // Affiche l’obstacle si case == 9
+            if (grid[y][x] == 9 && img_obstacle != NULL) {
+                draw_sprite(buffer, img_obstacle, px, py);
             }
+
+            // Affiche les lignes blanches
+            rect(buffer, px, py, px + 60, py + 60, makecol(255, 255, 255));
         }
     }
 }
