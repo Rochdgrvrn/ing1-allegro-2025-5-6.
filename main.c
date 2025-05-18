@@ -52,11 +52,13 @@ int main() {
             break;
         }
 
+        // Affichage
         blit(buffer, screen, 0, 0, 0, 0, 800, 700);
         clear_bitmap(buffer);
         rest(20);
     }
 
+    // Nettoyage mémoire
     destroy_assets();
     destroy_bitmap(buffer);
 
