@@ -22,4 +22,3 @@ int find_path(int sx, int sy, int dx, int dy, Coord *path, int *path_len);
 int is_valid_cell(int x, int y);
 
 #endif
-
