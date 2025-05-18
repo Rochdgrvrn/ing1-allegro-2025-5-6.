@@ -4,6 +4,8 @@
 #include "spell.h"
 #include <allegro.h>
 #include <stdio.h>
+#include "../include/images.h"
+
 
 int selected_temp = -1;
 
@@ -28,19 +30,39 @@ void show_menu() {
             exit(0);
         }
     }
+    draw_button(300, 410, 200, 50, hardcore_mode ? "Mode : Hardcore" : "Mode : Normal");
+    if (mouse_b & 1 && mouse_x >= 300 && mouse_x <= 500 && mouse_y >= 410 && mouse_y <= 460) {
+        hardcore_mode = !hardcore_mode;
+        rest(200);
+    }
 }
-
 void show_rules() {
     clear_to_color(buffer, makecol(20, 20, 60));
-    draw_text_center("Règles du jeu", SCREEN_W / 2, 50, makecol(255, 255, 255));
-    draw_text("- Jeu tour par tour avec PA et PM", 50, 100, makecol(255, 255, 255));
-    draw_text("- Chaque joueur choisit une classe parmi 4", 50, 130, makecol(255, 255, 255));
-    draw_text("- 4 sorts par classe, chacun avec ses stats", 50, 160, makecol(255, 255, 255));
-    draw_text("- Déplacez-vous avec Move, attaquez avec vos sorts", 50, 190, makecol(255, 255, 255));
-    draw_text("- Objectif : survivre, éliminer les autres", 50, 220, makecol(255, 255, 255));
+    draw_text_center("Règles détaillées du jeu ECE Arena", SCREEN_W / 2, 30, makecol(255, 255, 0));
 
-    draw_button(300, 600, 200, 40, "Retour");
-    if (mouse_b & 1 && mouse_x >= 300 && mouse_x <= 500 && mouse_y >= 600 && mouse_y <= 640) {
+    int y = 70;
+    draw_text("- Jeu de combat en arène au tour par tour (inspiré de Dofus Arena)", 20, y, makecol(255, 255, 255));
+    draw_text("- 2 à 4 joueurs s'affrontent sur une grille 10x10", 20, y += 20, makecol(255, 255, 255));
+    draw_text("- Chaque joueur choisit une classe avec 4 sorts différents", 20, y += 20, makecol(255, 255, 255));
+    draw_text("- À son tour, un joueur dispose de :", 20, y += 30, makecol(255, 255, 255));
+    draw_text("    - 3 PM (Points de Mouvement)", 40, y += 20, makecol(255, 255, 255));
+    draw_text("    - 6 PA (Points d'Action)", 40, y += 20, makecol(255, 255, 255));
+    draw_text("    - 20 secondes pour jouer (puis passage automatique)", 40, y += 20, makecol(255, 255, 255));
+    draw_text("- Le joueur peut : se déplacer, lancer un sort, ou finir son tour", 20, y += 30, makecol(255, 255, 255));
+    draw_text("- Les déplacements sont limités aux cases accessibles (3 PM max)", 20, y += 20, makecol(255, 255, 255));
+    draw_text("- Les sorts ont :", 20, y += 30, makecol(255, 255, 255));
+    draw_text("    - Un coût en PA", 40, y += 20, makecol(255, 255, 255));
+    draw_text("    - Une portée minimale et maximale", 40, y += 20, makecol(255, 255, 255));
+    draw_text("    - Un effet : dégâts, soin ou zone", 40, y += 20, makecol(255, 255, 255));
+    draw_text("    - Un pourcentage d'échec", 40, y += 20, makecol(255, 255, 255));
+    draw_text("- Une attaque réussie fait perdre des PV à l’adversaire", 20, y += 30, makecol(255, 255, 255));
+    draw_text("- Un joueur est éliminé si ses PV tombent à zéro", 20, y += 20, makecol(255, 255, 255));
+    draw_text("- Le dernier joueur en vie remporte la partie", 20, y += 20, makecol(255, 255, 255));
+    draw_text("- À la fin, un classement est affiché", 20, y += 20, makecol(255, 255, 255));
+    draw_text("- Bonus : certaines classes peuvent se soigner ou frapper en zone", 20, y += 20, makecol(255, 255, 255));
+
+    draw_button(300, 640, 200, 40, "Retour");
+    if (mouse_b & 1 && mouse_x >= 300 && mouse_x <= 500 && mouse_y >= 640 && mouse_y <= 680) {
         game_state = STATE_MENU;
         rest(200);
     }
@@ -130,10 +152,18 @@ void reset_game_state() {
     countdown = 20;
     frame_counter = 0;
 
-    for (int i = 0; i < 10; i++)
-        for (int j = 0; j < 10; j++)
-            grid[i][j] = 0;
+    // Réinitialiser grille
+    for (int y = 0; y < 10; y++)
+        for (int x = 0; x < 10; x++)
+            grid[y][x] = 0;
 
+    // Supprimer l'image des anciens obstacles
+    if (img_obstacle_layer != NULL) {
+        destroy_bitmap(img_obstacle_layer);
+        img_obstacle_layer = NULL;
+    }
+
+    // Réinitialiser les joueurs
     for (int i = 0; i < 4; i++) {
         selected_characters[i] = -1;
         player_pm_total[i] = 100;
@@ -142,9 +172,15 @@ void reset_game_state() {
         player_pv[i] = 20;
         player_grid_positions[i][0] = -1;
         player_grid_positions[i][1] = -1;
+        is_alive[i] = 1;
+        death_order[i] = -1;
     }
-}
 
+    death_count = 0;
+    game_over = 0;
+    death_message[0] = '\0';
+    death_message_timer = 0;
+}
 
 
 
